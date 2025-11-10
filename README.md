@@ -8,7 +8,7 @@
   <strong>A clean, simple, and efficient mobile application built with Flutter to help you keep track of all your subscriptions. Never lose sight of your recurring payments again.</strong>
 </p>
 
----
+----
 
 ### About The Project
 
