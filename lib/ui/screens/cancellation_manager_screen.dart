@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import '../../app/controllers/subscription_controller.dart';
+import '../../app/data/models/subscription_model.dart';
+import '../widgets/modern_ui_components.dart';
 
-/// Cancellation & Renewal Manager Screen
+/// Cancellation & Renewal Manager Screen - Modern Redesign
 class CancellationManagerScreen extends StatefulWidget {
   const CancellationManagerScreen({super.key});
 
@@ -10,48 +14,26 @@ class CancellationManagerScreen extends StatefulWidget {
       _CancellationManagerScreenState();
 }
 
-class _CancellationManagerScreenState extends State<CancellationManagerScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+class _CancellationManagerScreenState extends State<CancellationManagerScreen> {
+  final SubscriptionController _controller = Get.find();
+  int _selectedTab = 0; // 0 = Upcoming, 1 = Cancelled
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0A0A0F) : Colors.grey[50],
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
           _buildAppBar(context),
           SliverToBoxAdapter(child: _buildRenewalSummary(context)),
-          SliverToBoxAdapter(child: _buildTabBar(context)),
+          SliverToBoxAdapter(child: _buildTabSelector(context)),
           SliverToBoxAdapter(
-            child: SizedBox(
-              height: 900,
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildUpcomingRenewalsTab(context),
-                  _buildPausedSubscriptionsTab(context),
-                  _buildCancellationHistoryTab(context),
-                ],
-              ),
-            ),
+            child: _selectedTab == 0
+                ? _buildUpcomingRenewals(context)
+                : _buildCancelledSubscriptions(context),
           ),
+          SliverToBoxAdapter(child: _buildCancellationTips(context)),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );
@@ -59,829 +41,137 @@ class _CancellationManagerScreenState extends State<CancellationManagerScreen>
 
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 120,
       pinned: true,
-      backgroundColor: Colors.transparent,
-      flexibleSpace: FlexibleSpaceBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.event_repeat,
-                color: Colors.white,
-                size: 16,
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              'Renewals',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ],
-        ),
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                const Color(0xFFFF6B6B).withOpacity(0.3),
-                const Color(0xFFFF8E53).withOpacity(0.3),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      surfaceTintColor: Colors.transparent,
+      title: const Text(
+        'Renewals & Cancellations',
+        style: TextStyle(fontWeight: FontWeight.w600),
       ),
     );
   }
 
   Widget _buildRenewalSummary(BuildContext context) {
-    final theme = Theme.of(context);
+    return Obx(() {
+      final subs = _controller.filteredSubscriptions;
+      final upcoming = subs
+          .where(
+            (s) =>
+                s.status == SubscriptionStatus.active &&
+                s.nextBillingDate.difference(DateTime.now()).inDays <= 30,
+          )
+          .length;
+      final thisMonth = subs
+          .where(
+            (s) =>
+                s.status == SubscriptionStatus.active &&
+                s.nextBillingDate.month == DateTime.now().month,
+          )
+          .fold<double>(0, (sum, s) => sum + s.amount);
 
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF6B6B).withOpacity(0.4),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(
-                    Icons.calendar_month,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '₹3,847 Due',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Total renewals in the next 30 days',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: AccentCard(
+          accentColor: AppColors.warning,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              Row(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildSummaryItem('This Week', '₹649', Icons.today),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        color: Colors.white.withOpacity(0.2),
-                      ),
-                      _buildSummaryItem(
-                        'This Month',
-                        '₹2,198',
-                        Icons.date_range,
-                      ),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        color: Colors.white.withOpacity(0.2),
-                      ),
-                      _buildSummaryItem('Paused', '2', Icons.pause_circle),
-                    ],
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.event_repeat_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  _buildTimelineBar(),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Upcoming Renewals',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$upcoming renewing in the next 30 days',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryItem(String label, String value, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.white70, size: 20),
-        const SizedBox(height: 6),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTimelineBar() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Renewal Timeline',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Text(
-              '6 renewals this month',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
-                fontSize: 11,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Stack(
-          children: [
-            Container(
-              height: 8,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            FractionallySizedBox(
-              widthFactor: 0.35,
-              child: Container(
-                height: 8,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Week 1',
-              style: TextStyle(color: Colors.white70, fontSize: 10),
-            ),
-            Text(
-              'Week 2',
-              style: TextStyle(color: Colors.white70, fontSize: 10),
-            ),
-            Text(
-              'Week 3',
-              style: TextStyle(color: Colors.white70, fontSize: 10),
-            ),
-            Text(
-              'Week 4',
-              style: TextStyle(color: Colors.white70, fontSize: 10),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTabBar(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1F2937) : Colors.grey[200],
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        indicator: BoxDecoration(
-          color: isDark ? const Color(0xFF374151) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        labelColor: theme.colorScheme.primary,
-        unselectedLabelColor: theme.hintColor,
-        dividerColor: Colors.transparent,
-        tabs: const [
-          Tab(text: 'Upcoming'),
-          Tab(text: 'Paused'),
-          Tab(text: 'History'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUpcomingRenewalsTab(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    final renewals = [
-      _Renewal(
-        name: 'Netflix Premium',
-        amount: 649,
-        renewDate: DateTime.now().add(const Duration(days: 3)),
-        icon: Icons.play_circle,
-        color: const Color(0xFFE50914),
-        billingCycle: 'Monthly',
-        autoRenew: true,
-      ),
-      _Renewal(
-        name: 'Spotify Premium',
-        amount: 119,
-        renewDate: DateTime.now().add(const Duration(days: 7)),
-        icon: Icons.music_note,
-        color: const Color(0xFF1DB954),
-        billingCycle: 'Monthly',
-        autoRenew: true,
-      ),
-      _Renewal(
-        name: 'Adobe Creative Cloud',
-        amount: 4230,
-        renewDate: DateTime.now().add(const Duration(days: 15)),
-        icon: Icons.brush,
-        color: const Color(0xFFFA0F00),
-        billingCycle: 'Monthly',
-        autoRenew: true,
-      ),
-      _Renewal(
-        name: 'Microsoft 365',
-        amount: 5868,
-        renewDate: DateTime.now().add(const Duration(days: 45)),
-        icon: Icons.apps,
-        color: const Color(0xFF00A4EF),
-        billingCycle: 'Yearly',
-        autoRenew: true,
-      ),
-      _Renewal(
-        name: 'YouTube Premium',
-        amount: 129,
-        renewDate: DateTime.now().add(const Duration(days: 12)),
-        icon: Icons.smart_display,
-        color: const Color(0xFFFF0000),
-        billingCycle: 'Monthly',
-        autoRenew: true,
-      ),
-    ];
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: renewals.length,
-      itemBuilder: (context, index) {
-        final renewal = renewals[index];
-        return _buildRenewalCard(context, renewal);
-      },
-    );
-  }
-
-  Widget _buildRenewalCard(BuildContext context, _Renewal renewal) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final daysUntil = renewal.renewDate.difference(DateTime.now()).inDays;
-    final isUrgent = daysUntil <= 3;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1F2937) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: isUrgent
-            ? Border.all(
-                color: const Color(0xFFFF6B6B).withOpacity(0.5),
-                width: 2,
-              )
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: isUrgent
-                ? const Color(0xFFFF6B6B).withOpacity(0.2)
-                : Colors.black.withOpacity(isDark ? 0.3 : 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: renewal.color,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: renewal.color.withOpacity(0.4),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Icon(renewal.icon, color: Colors.white, size: 24),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            renewal.name,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            '₹${renewal.amount}',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: const Color(0xFF667EEA),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isUrgent
-                                  ? const Color(0xFFFF6B6B).withOpacity(0.15)
-                                  : const Color(0xFF00BFA6).withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              '$daysUntil days',
-                              style: TextStyle(
-                                color: isUrgent
-                                    ? const Color(0xFFFF6B6B)
-                                    : const Color(0xFF00BFA6),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            '• ${renewal.billingCycle}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.hintColor,
-                            ),
-                          ),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                renewal.autoRenew
-                                    ? Icons.autorenew
-                                    : Icons.cancel_outlined,
-                                size: 14,
-                                color: renewal.autoRenew
-                                    ? const Color(0xFF00BFA6)
-                                    : theme.hintColor,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                renewal.autoRenew ? 'Auto' : 'Manual',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.hintColor,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _pauseSubscription(renewal),
-                    icon: const Icon(Icons.pause_outlined, size: 16),
-                    label: const Text('Pause'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _skipRenewal(renewal),
-                    icon: const Icon(Icons.skip_next_outlined, size: 16),
-                    label: const Text('Skip'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showCancelSheet(context, renewal),
-                    icon: const Icon(Icons.cancel_outlined, size: 16),
-                    label: const Text('Cancel'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF6B6B),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPausedSubscriptionsTab(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    final paused = [
-      _PausedSubscription(
-        name: 'Disney+ Hotstar',
-        pausedDate: DateTime.now().subtract(const Duration(days: 15)),
-        resumeDate: DateTime.now().add(const Duration(days: 15)),
-        savedAmount: 299,
-        icon: Icons.movie,
-        color: const Color(0xFF113CCF),
-        reason: 'Traveling',
-      ),
-      _PausedSubscription(
-        name: 'Gym Membership',
-        pausedDate: DateTime.now().subtract(const Duration(days: 30)),
-        resumeDate: DateTime.now().add(const Duration(days: 30)),
-        savedAmount: 1499,
-        icon: Icons.fitness_center,
-        color: const Color(0xFFFF5722),
-        reason: 'Medical',
-      ),
-    ];
-
-    if (paused.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.pause_circle_outline,
-              size: 64,
-              color: theme.hintColor.withOpacity(0.4),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No Paused Subscriptions',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.hintColor,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: paused.length + 1,
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return _buildPausedSavingsCard(context, paused);
-        }
-        return _buildPausedCard(context, paused[index - 1]);
-      },
-    );
-  }
-
-  Widget _buildPausedSavingsCard(
-    BuildContext context,
-    List<_PausedSubscription> paused,
-  ) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final totalSaved = paused.fold(0.0, (sum, p) => sum + p.savedAmount);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF00BFA6).withOpacity(0.15),
-            const Color(0xFF00D4AA).withOpacity(0.1),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF00BFA6).withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF00BFA6), Color(0xFF00D4AA)],
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(Icons.savings, color: Colors.white, size: 28),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'You\'re saving ₹${totalSaved.toStringAsFixed(0)}/mo',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF00BFA6),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'by pausing ${paused.length} subscription${paused.length > 1 ? 's' : ''}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.hintColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPausedCard(BuildContext context, _PausedSubscription sub) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final daysRemaining = sub.resumeDate.difference(DateTime.now()).inDays;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1F2937) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: sub.color.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(sub.icon, color: sub.color, size: 24),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            sub.name,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.pause,
-                                  size: 12,
-                                  color: Colors.amber,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'PAUSED',
-                                  style: TextStyle(
-                                    color: Colors.amber[700],
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Reason: ${sub.reason}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.hintColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF374151) : Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+              const SizedBox(height: 24),
+              Row(
                 children: [
-                  Column(
-                    children: [
-                      Text(
-                        '₹${sub.savedAmount}',
-                        style: const TextStyle(
-                          color: Color(0xFF00BFA6),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        'Saving/mo',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.hintColor,
-                        ),
-                      ),
-                    ],
+                  Expanded(
+                    child: _SummaryStat(
+                      label: 'This Month',
+                      value: '₹${thisMonth.toStringAsFixed(0)}',
+                    ),
                   ),
                   Container(
                     width: 1,
-                    height: 35,
-                    color: isDark ? Colors.white10 : Colors.grey[300],
+                    height: 40,
+                    color: Colors.white.withValues(alpha: 0.2),
                   ),
-                  Column(
-                    children: [
-                      Text(
-                        '$daysRemaining days',
-                        style: TextStyle(
-                          color: Colors.amber[700],
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        'Until resume',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.hintColor,
-                        ),
-                      ),
-                    ],
+                  Expanded(
+                    child: _SummaryStat(
+                      label: 'Renewing Soon',
+                      value: upcoming.toString(),
+                    ),
                   ),
                 ],
               ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildTabSelector(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.slate800 : AppColors.slate100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _TabButton(
+                label: 'Upcoming',
+                isSelected: _selectedTab == 0,
+                onTap: () => setState(() => _selectedTab = 0),
+              ),
             ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _extendPause(sub),
-                    icon: const Icon(Icons.more_time, size: 16),
-                    label: const Text('Extend'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _resumeSubscription(sub),
-                    icon: const Icon(Icons.play_arrow, size: 16),
-                    label: const Text('Resume'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00BFA6),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            Expanded(
+              child: _TabButton(
+                label: 'Cancelled',
+                isSelected: _selectedTab == 1,
+                onTap: () => setState(() => _selectedTab = 1),
+              ),
             ),
           ],
         ),
@@ -889,273 +179,171 @@ class _CancellationManagerScreenState extends State<CancellationManagerScreen>
     );
   }
 
-  Widget _buildCancellationHistoryTab(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+  Widget _buildUpcomingRenewals(BuildContext context) {
+    return Obx(() {
+      final subs =
+          _controller.filteredSubscriptions
+              .where((s) => s.status == SubscriptionStatus.active)
+              .toList()
+            ..sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
 
-    final history = [
-      _CancellationRecord(
-        name: 'LinkedIn Premium',
-        cancelledDate: DateTime.now().subtract(const Duration(days: 30)),
-        monthlyCost: 1499,
-        totalPaid: 8994,
-        usageDuration: 6,
-        icon: Icons.business,
-        color: const Color(0xFF0077B5),
-        reason: 'Not using enough',
-      ),
-      _CancellationRecord(
-        name: 'Headspace',
-        cancelledDate: DateTime.now().subtract(const Duration(days: 60)),
-        monthlyCost: 899,
-        totalPaid: 10788,
-        usageDuration: 12,
-        icon: Icons.self_improvement,
-        color: const Color(0xFFFF8C00),
-        reason: 'Found free alternative',
-      ),
-      _CancellationRecord(
-        name: 'Audible',
-        cancelledDate: DateTime.now().subtract(const Duration(days: 90)),
-        monthlyCost: 199,
-        totalPaid: 796,
-        usageDuration: 4,
-        icon: Icons.headphones,
-        color: const Color(0xFFFF9900),
-        reason: 'Too expensive',
-      ),
-    ];
+      if (subs.isEmpty) {
+        return const ModernEmptyState(
+          icon: Icons.event_available_rounded,
+          title: 'No upcoming renewals',
+          subtitle: 'All your subscriptions are up to date',
+        );
+      }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: history.length + 1,
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return _buildHistorySummary(context, history);
-        }
-        return _buildHistoryCard(context, history[index - 1]);
-      },
-    );
-  }
-
-  Widget _buildHistorySummary(
-    BuildContext context,
-    List<_CancellationRecord> history,
-  ) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final totalSaved = history.fold(0.0, (sum, h) => sum + h.monthlyCost);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1F2937) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.trending_up, color: Color(0xFF00BFA6), size: 28),
-              const SizedBox(width: 12),
-              Text(
-                '₹${totalSaved.toStringAsFixed(0)}/mo saved',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF00BFA6),
-                ),
-              ),
-            ],
+          const ModernSectionHeader(
+            title: 'Renewal Schedule',
+            subtitle: 'Sorted by next billing date',
           ),
-          const SizedBox(height: 8),
-          Text(
-            'from ${history.length} cancelled subscriptions',
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildMiniStat(
-                context,
-                '₹${(totalSaved * 12).toStringAsFixed(0)}',
-                'Yearly',
-              ),
-              _buildMiniStat(context, '${history.length}', 'Cancelled'),
-              _buildMiniStat(
-                context,
-                '${(history.fold(0, (sum, h) => sum + h.usageDuration) / history.length).toStringAsFixed(0)} mo',
-                'Avg Duration',
-              ),
-            ],
+          ModernCard(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: subs.take(5).map((sub) {
+                final daysUntil = sub.nextBillingDate
+                    .difference(DateTime.now())
+                    .inDays;
+                final isLast = sub == subs.take(5).last;
+                return Column(
+                  children: [
+                    _RenewalTile(
+                      subscription: sub,
+                      daysUntil: daysUntil,
+                      onCancel: () => _showCancelDialog(context, sub),
+                    ),
+                    if (!isLast) const ModernDivider(),
+                  ],
+                );
+              }).toList(),
+            ),
           ),
         ],
-      ),
-    );
+      );
+    });
   }
 
-  Widget _buildMiniStat(BuildContext context, String value, String label) {
-    final theme = Theme.of(context);
-    return Column(
-      children: [
-        Text(
-          value,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
+  Widget _buildCancelledSubscriptions(BuildContext context) {
+    return Obx(() {
+      final cancelled = _controller.filteredSubscriptions
+          .where((s) => s.status == SubscriptionStatus.cancelled)
+          .toList();
+
+      if (cancelled.isEmpty) {
+        return const ModernEmptyState(
+          icon: Icons.cancel_outlined,
+          title: 'No cancelled subscriptions',
+          subtitle: 'Cancelled subscriptions will appear here',
+        );
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ModernSectionHeader(title: 'Cancelled'),
+          ModernCard(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: cancelled.map((sub) {
+                final isLast = sub == cancelled.last;
+                return Column(
+                  children: [
+                    _CancelledTile(
+                      subscription: sub,
+                      onReactivate: () => _reactivate(sub),
+                    ),
+                    if (!isLast) const ModernDivider(),
+                  ],
+                );
+              }).toList(),
+            ),
           ),
-        ),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+        ],
+      );
+    });
+  }
+
+  Widget _buildCancellationTips(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ModernSectionHeader(title: 'Tips', subtitle: 'Before you cancel'),
+        ModernCard(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            children: const [
+              _TipItem(
+                icon: Icons.pause_circle_outline_rounded,
+                title: 'Consider pausing',
+                subtitle: 'Some services let you pause instead of cancel',
+              ),
+              ModernDivider(padding: EdgeInsets.symmetric(vertical: 12)),
+              _TipItem(
+                icon: Icons.discount_outlined,
+                title: 'Check for discounts',
+                subtitle: 'Contact support for retention offers',
+              ),
+              ModernDivider(padding: EdgeInsets.symmetric(vertical: 12)),
+              _TipItem(
+                icon: Icons.download_outlined,
+                title: 'Export your data',
+                subtitle: 'Download content before cancelling',
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildHistoryCard(BuildContext context, _CancellationRecord record) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1F2937) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+  void _showCancelDialog(BuildContext context, SubscriptionModel sub) {
+    HapticFeedback.mediumImpact();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Cancel Subscription?'),
+        content: Text(
+          'Are you sure you want to cancel ${sub.name}? You can still use it until ${_formatDate(sub.nextBillingDate)}.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Keep'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _cancelSubscription(sub);
+            },
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Cancel'),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: record.color.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    record.icon,
-                    color: record.color.withOpacity(0.7),
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            record.name,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              decoration: TextDecoration.lineThrough,
-                              decorationColor: theme.hintColor,
-                            ),
-                          ),
-                          Text(
-                            '₹${record.monthlyCost}/mo',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.hintColor,
-                              decoration: TextDecoration.lineThrough,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Cancelled ${_formatDate(record.cancelledDate)}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.hintColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF374151) : Colors.grey[100],
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.format_quote,
-                    color: theme.hintColor.withOpacity(0.5),
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Reason: ${record.reason}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.hintColor,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Used for ${record.usageDuration} months',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.hintColor,
-                  ),
-                ),
-                Text(
-                  'Total paid: ₹${record.totalPaid}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.hintColor,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => _resubscribe(record),
-                icon: const Icon(Icons.replay, size: 16),
-                label: const Text('Resubscribe'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    );
+  }
+
+  void _cancelSubscription(SubscriptionModel sub) {
+    HapticFeedback.mediumImpact();
+    Get.snackbar(
+      'Subscription Cancelled',
+      '${sub.name} will be cancelled',
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
+  void _reactivate(SubscriptionModel sub) {
+    HapticFeedback.mediumImpact();
+    Get.snackbar(
+      'Reactivate',
+      'Would you like to reactivate ${sub.name}?',
+      snackPosition: SnackPosition.BOTTOM,
     );
   }
 
@@ -1174,233 +362,311 @@ class _CancellationManagerScreenState extends State<CancellationManagerScreen>
       'Nov',
       'Dec',
     ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+    return '${months[date.month - 1]} ${date.day}';
   }
+}
 
-  void _showCancelSheet(BuildContext context, _Renewal renewal) {
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPER WIDGETS
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _SummaryStat extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _SummaryStat({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.7),
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TabButton extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _TabButton({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(24),
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1F2937) : Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          color: isSelected
+              ? (isDark ? AppColors.slate700 : Colors.white)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              color: isSelected
+                  ? theme.colorScheme.onSurface
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF6B6B).withOpacity(0.15),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Icon(
-                Icons.warning_amber_rounded,
-                color: const Color(0xFFFF6B6B),
-                size: 40,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Cancel ${renewal.name}?',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Your subscription will remain active until ${_formatDate(renewal.renewDate)}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.hintColor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            Text('Why are you cancelling?', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _buildReasonChip('Too expensive'),
-                _buildReasonChip('Not using enough'),
-                _buildReasonChip('Found alternative'),
-                _buildReasonChip('Poor service'),
-                _buildReasonChip('Other'),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Get.back(),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: const Text('Keep Subscription'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Get.back();
-                      Get.snackbar(
-                        'Subscription Cancelled',
-                        '${renewal.name} will be cancelled after ${_formatDate(renewal.renewDate)}',
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: const Color(0xFFFF6B6B),
-                        colorText: Colors.white,
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF6B6B),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: const Text('Confirm Cancel'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-          ],
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildReasonChip(String reason) {
-    return ChoiceChip(
-      label: Text(reason),
-      selected: false,
-      onSelected: (selected) {},
-    );
-  }
+class _RenewalTile extends StatelessWidget {
+  final SubscriptionModel subscription;
+  final int daysUntil;
+  final VoidCallback onCancel;
 
-  void _pauseSubscription(_Renewal renewal) {
-    Get.snackbar(
-      'Subscription Paused ⏸️',
-      '${renewal.name} has been paused for 30 days',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.amber,
-      colorText: Colors.black,
-    );
-  }
+  const _RenewalTile({
+    required this.subscription,
+    required this.daysUntil,
+    required this.onCancel,
+  });
 
-  void _skipRenewal(_Renewal renewal) {
-    Get.snackbar(
-      'Renewal Skipped ⏭️',
-      '${renewal.name} renewal has been skipped for this cycle',
-      snackPosition: SnackPosition.BOTTOM,
-    );
-  }
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final isUrgent = daysUntil <= 3;
 
-  void _extendPause(_PausedSubscription sub) {
-    Get.snackbar(
-      'Pause Extended',
-      '${sub.name} pause extended by 30 days',
-      snackPosition: SnackPosition.BOTTOM,
-    );
-  }
-
-  void _resumeSubscription(_PausedSubscription sub) {
-    Get.snackbar(
-      'Subscription Resumed ▶️',
-      '${sub.name} is now active again',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: const Color(0xFF00BFA6),
-      colorText: Colors.white,
-    );
-  }
-
-  void _resubscribe(_CancellationRecord record) {
-    Get.snackbar(
-      'Opening ${record.name}...',
-      'Redirecting to subscription page',
-      snackPosition: SnackPosition.BOTTOM,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: (subscription.color ?? AppColors.primary).withValues(
+                alpha: 0.15,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Text(
+                subscription.name.isNotEmpty ? subscription.name[0] : '?',
+                style: TextStyle(
+                  color: subscription.color,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  subscription.name,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text(
+                      '₹${subscription.amount.toStringAsFixed(0)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      ' • ',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.3,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      daysUntil == 0
+                          ? 'Today'
+                          : daysUntil == 1
+                          ? 'Tomorrow'
+                          : 'In $daysUntil days',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: isUrgent ? AppColors.error : AppColors.warning,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onCancel,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.error,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
     );
   }
 }
 
-// Data classes
-class _Renewal {
-  final String name;
-  final double amount;
-  final DateTime renewDate;
-  final IconData icon;
-  final Color color;
-  final String billingCycle;
-  final bool autoRenew;
+class _CancelledTile extends StatelessWidget {
+  final SubscriptionModel subscription;
+  final VoidCallback onReactivate;
 
-  const _Renewal({
-    required this.name,
-    required this.amount,
-    required this.renewDate,
-    required this.icon,
-    required this.color,
-    required this.billingCycle,
-    required this.autoRenew,
+  const _CancelledTile({
+    required this.subscription,
+    required this.onReactivate,
   });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.slate300.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Text(
+                subscription.name.isNotEmpty ? subscription.name[0] : '?',
+                style: TextStyle(
+                  color: AppColors.slate500,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  subscription.name,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    decoration: TextDecoration.lineThrough,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Cancelled',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.error,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onReactivate,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            child: const Text('Reactivate'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _PausedSubscription {
-  final String name;
-  final DateTime pausedDate;
-  final DateTime resumeDate;
-  final double savedAmount;
+class _TipItem extends StatelessWidget {
   final IconData icon;
-  final Color color;
-  final String reason;
+  final String title;
+  final String subtitle;
 
-  const _PausedSubscription({
-    required this.name,
-    required this.pausedDate,
-    required this.resumeDate,
-    required this.savedAmount,
+  const _TipItem({
     required this.icon,
-    required this.color,
-    required this.reason,
+    required this.title,
+    required this.subtitle,
   });
-}
 
-class _CancellationRecord {
-  final String name;
-  final DateTime cancelledDate;
-  final double monthlyCost;
-  final double totalPaid;
-  final int usageDuration;
-  final IconData icon;
-  final Color color;
-  final String reason;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-  const _CancellationRecord({
-    required this.name,
-    required this.cancelledDate,
-    required this.monthlyCost,
-    required this.totalPaid,
-    required this.usageDuration,
-    required this.icon,
-    required this.color,
-    required this.reason,
-  });
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: isDark ? 0.15 : 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: AppColors.primary, size: 20),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }

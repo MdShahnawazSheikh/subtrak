@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../app/controllers/subscription_controller.dart';
-import '../../app/data/models/subscription_model.dart';
+import '../widgets/modern_ui_components.dart';
 
-/// Premium Export & Reports Screen
+/// Export & Reports Screen - Modern Redesign
 class ExportReportsScreen extends StatefulWidget {
   const ExportReportsScreen({super.key});
 
@@ -12,46 +12,26 @@ class ExportReportsScreen extends StatefulWidget {
   State<ExportReportsScreen> createState() => _ExportReportsScreenState();
 }
 
-class _ExportReportsScreenState extends State<ExportReportsScreen>
-    with SingleTickerProviderStateMixin {
+class _ExportReportsScreenState extends State<ExportReportsScreen> {
   final SubscriptionController _controller = Get.find();
-  late TabController _tabController;
 
-  String _selectedDateRange = 'Last 12 Months';
   String _selectedFormat = 'PDF';
+  String _selectedPeriod = 'Last 12 Months';
   bool _includeCharts = true;
-  bool _includeDetailedBreakdown = true;
-  bool _includeRecommendations = true;
-  bool _isGenerating = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+  bool _includeBreakdown = true;
+  bool _isExporting = false;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0A0A0F) : Colors.grey[50],
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
           _buildAppBar(context),
           SliverToBoxAdapter(child: _buildQuickExport(context)),
           SliverToBoxAdapter(child: _buildReportTemplates(context)),
-          SliverToBoxAdapter(child: _buildCustomReportBuilder(context)),
-          SliverToBoxAdapter(child: _buildScheduledReports(context)),
-          SliverToBoxAdapter(child: _buildExportHistory(context)),
+          SliverToBoxAdapter(child: _buildExportOptions(context)),
+          SliverToBoxAdapter(child: _buildRecentExports(context)),
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
@@ -60,75 +40,23 @@ class _ExportReportsScreenState extends State<ExportReportsScreen>
 
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 120,
       pinned: true,
-      backgroundColor: Colors.transparent,
-      flexibleSpace: FlexibleSpaceBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF00BFA6), Color(0xFF00D4AA)],
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.description,
-                color: Colors.white,
-                size: 16,
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Flexible(
-              child: Text(
-                'Reports',
-                style: TextStyle(fontWeight: FontWeight.w700),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                const Color(0xFF00BFA6).withOpacity(0.3),
-                const Color(0xFF667EEA).withOpacity(0.3),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      surfaceTintColor: Colors.transparent,
+      title: const Text(
+        'Export & Reports',
+        style: TextStyle(fontWeight: FontWeight.w600),
       ),
     );
   }
 
   Widget _buildQuickExport(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF00BFA6), Color(0xFF00D4AA)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF00BFA6).withOpacity(0.4),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Padding(
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: AccentCard(
+        accentColor: AppColors.accent,
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -138,13 +66,13 @@ class _ExportReportsScreenState extends State<ExportReportsScreen>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: const Icon(
-                    Icons.flash_on,
+                    Icons.flash_on_rounded,
                     color: Colors.white,
-                    size: 28,
+                    size: 24,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -156,14 +84,14 @@ class _ExportReportsScreenState extends State<ExportReportsScreen>
                         'Quick Export',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Export your subscription data instantly',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                        'Export your data in one tap',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
                       ),
                     ],
                   ),
@@ -171,129 +99,55 @@ class _ExportReportsScreenState extends State<ExportReportsScreen>
               ],
             ),
             const SizedBox(height: 24),
+            // Format selection
             Row(
               children: [
-                Expanded(
-                  child: _buildQuickExportButton(
-                    icon: Icons.picture_as_pdf,
-                    label: 'PDF',
-                    isSelected: _selectedFormat == 'PDF',
-                    onTap: () => setState(() => _selectedFormat = 'PDF'),
-                  ),
+                _FormatChip(
+                  label: 'PDF',
+                  icon: Icons.picture_as_pdf_rounded,
+                  isSelected: _selectedFormat == 'PDF',
+                  onTap: () => setState(() => _selectedFormat = 'PDF'),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildQuickExportButton(
-                    icon: Icons.table_chart,
-                    label: 'Excel',
-                    isSelected: _selectedFormat == 'Excel',
-                    onTap: () => setState(() => _selectedFormat = 'Excel'),
-                  ),
+                const SizedBox(width: 10),
+                _FormatChip(
+                  label: 'Excel',
+                  icon: Icons.table_chart_rounded,
+                  isSelected: _selectedFormat == 'Excel',
+                  onTap: () => setState(() => _selectedFormat = 'Excel'),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildQuickExportButton(
-                    icon: Icons.code,
-                    label: 'CSV',
-                    isSelected: _selectedFormat == 'CSV',
-                    onTap: () => setState(() => _selectedFormat = 'CSV'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildQuickExportButton(
-                    icon: Icons.data_object,
-                    label: 'JSON',
-                    isSelected: _selectedFormat == 'JSON',
-                    onTap: () => setState(() => _selectedFormat = 'JSON'),
-                  ),
+                const SizedBox(width: 10),
+                _FormatChip(
+                  label: 'CSV',
+                  icon: Icons.text_snippet_rounded,
+                  isSelected: _selectedFormat == 'CSV',
+                  onTap: () => setState(() => _selectedFormat = 'CSV'),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            GestureDetector(
-              onTap: _isGenerating ? null : () => _generateQuickExport(context),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isExporting ? null : () => _handleQuickExport(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppColors.accent,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_isGenerating)
-                      const SizedBox(
-                        width: 20,
+                child: _isExporting
+                    ? const SizedBox(
                         height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation(Color(0xFF00BFA6)),
-                        ),
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    else
-                      const Icon(
-                        Icons.download,
-                        color: Color(0xFF00BFA6),
-                        size: 22,
+                    : const Text(
+                        'Export Now',
+                        style: TextStyle(fontWeight: FontWeight.w600),
                       ),
-                    const SizedBox(width: 10),
-                    Text(
-                      _isGenerating ? 'Generating...' : 'Export Now',
-                      style: const TextStyle(
-                        color: Color(0xFF00BFA6),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickExportButton({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? const Color(0xFF00BFA6) : Colors.white,
-              size: 22,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? const Color(0xFF00BFA6) : Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
               ),
             ),
           ],
@@ -304,843 +158,455 @@ class _ExportReportsScreenState extends State<ExportReportsScreen>
 
   Widget _buildReportTemplates(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
-    final templates = [
-      _ReportTemplate(
-        id: 'monthly',
-        title: 'Monthly Summary',
-        description: 'Complete overview of this month\'s spending',
-        icon: Icons.calendar_month,
-        gradient: [const Color(0xFF7C4DFF), const Color(0xFF9C7DFF)],
-        sections: ['Overview', 'Category Breakdown', 'Trends'],
-      ),
-      _ReportTemplate(
-        id: 'annual',
-        title: 'Annual Report',
-        description: 'Comprehensive yearly financial analysis',
-        icon: Icons.assessment,
-        gradient: [const Color(0xFF667EEA), const Color(0xFF764BA2)],
-        sections: ['Year in Review', 'Comparisons', 'Insights', 'Predictions'],
-      ),
-      _ReportTemplate(
-        id: 'tax',
-        title: 'Tax Report',
-        description: 'Subscription expenses for tax purposes',
-        icon: Icons.receipt_long,
-        gradient: [const Color(0xFFFF6B6B), const Color(0xFFFF8E53)],
-        sections: ['Deductible Expenses', 'Business vs Personal', 'Receipts'],
-      ),
-      _ReportTemplate(
-        id: 'budget',
-        title: 'Budget Analysis',
-        description: 'Track spending against your budget goals',
-        icon: Icons.account_balance_wallet,
-        gradient: [const Color(0xFF00BFA6), const Color(0xFF00D4AA)],
-        sections: ['Budget Status', 'Overages', 'Recommendations'],
-      ),
-    ];
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Report Templates',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 14,
-              crossAxisSpacing: 14,
-              childAspectRatio: 0.9,
-            ),
-            itemCount: templates.length,
-            itemBuilder: (context, index) {
-              return _buildTemplateCard(context, templates[index]);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTemplateCard(BuildContext context, _ReportTemplate template) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return GestureDetector(
-      onTap: () => _generateReport(context, template),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1F2937) : Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: template.gradient[0].withOpacity(0.15),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ModernSectionHeader(
+          title: 'Report Templates',
+          subtitle: 'Pre-built reports for common needs',
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: template.gradient),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: template.gradient[0].withOpacity(0.4),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(template.icon, color: Colors.white, size: 22),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              template.title,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Flexible(
-              child: Text(
-                template.description,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.hintColor,
-                  height: 1.3,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.layers, color: template.gradient[0], size: 14),
-                const SizedBox(width: 4),
-                Text(
-                  '${template.sections.length} sections',
-                  style: TextStyle(
-                    color: template.gradient[0],
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCustomReportBuilder(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1F2937) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        SizedBox(
+          height: 130,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.build, color: Colors.white, size: 22),
+              _TemplateCard(
+                title: 'Monthly Summary',
+                subtitle: 'Spending overview',
+                icon: Icons.calendar_month_rounded,
+                color: AppColors.primary,
+                onTap: () => _generateReport('monthly'),
               ),
-              const SizedBox(width: 14),
-              Flexible(
-                child: Text(
-                  'Custom Report Builder',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
+              _TemplateCard(
+                title: 'Annual Report',
+                subtitle: 'Full year analysis',
+                icon: Icons.analytics_rounded,
+                color: AppColors.success,
+                onTap: () => _generateReport('annual'),
+              ),
+              _TemplateCard(
+                title: 'Tax Summary',
+                subtitle: 'Deductible expenses',
+                icon: Icons.receipt_long_rounded,
+                color: AppColors.warning,
+                onTap: () => _generateReport('tax'),
+              ),
+              _TemplateCard(
+                title: 'Category Analysis',
+                subtitle: 'Spending by type',
+                icon: Icons.pie_chart_rounded,
+                color: AppColors.secondary,
+                onTap: () => _generateReport('category'),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          // Date Range Selector
-          _buildOptionSection(
-            context,
-            title: 'Date Range',
-            child: Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                _buildChip(
-                  'Last 30 Days',
-                  _selectedDateRange == 'Last 30 Days',
-                  () => setState(() => _selectedDateRange = 'Last 30 Days'),
-                ),
-                _buildChip(
-                  'Last 90 Days',
-                  _selectedDateRange == 'Last 90 Days',
-                  () => setState(() => _selectedDateRange = 'Last 90 Days'),
-                ),
-                _buildChip(
-                  'Last 12 Months',
-                  _selectedDateRange == 'Last 12 Months',
-                  () => setState(() => _selectedDateRange = 'Last 12 Months'),
-                ),
-                _buildChip(
-                  'Custom',
-                  _selectedDateRange == 'Custom',
-                  () => _showDatePicker(context),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          // Include Options
-          _buildOptionSection(
-            context,
-            title: 'Include in Report',
-            child: Column(
-              children: [
-                _buildToggleOption(
-                  'Charts & Visualizations',
-                  Icons.bar_chart,
-                  _includeCharts,
-                  (val) => setState(() => _includeCharts = val),
-                ),
-                _buildToggleOption(
-                  'Detailed Breakdown',
-                  Icons.list_alt,
-                  _includeDetailedBreakdown,
-                  (val) => setState(() => _includeDetailedBreakdown = val),
-                ),
-                _buildToggleOption(
-                  'AI Recommendations',
-                  Icons.lightbulb,
-                  _includeRecommendations,
-                  (val) => setState(() => _includeRecommendations = val),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _buildCustomReport(context),
-              icon: const Icon(Icons.auto_awesome),
-              label: const Text('Generate Custom Report'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF667EEA),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 4,
-                shadowColor: const Color(0xFF667EEA).withOpacity(0.4),
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildOptionSection(
-    BuildContext context, {
-    required String title,
-    required Widget child,
-  }) {
+  Widget _buildExportOptions(BuildContext context) {
     final theme = Theme.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: theme.hintColor,
+        const ModernSectionHeader(title: 'Export Options'),
+        ModernCard(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            children: [
+              // Period selection
+              ActionTile(
+                icon: Icons.date_range_rounded,
+                title: 'Time Period',
+                subtitle: _selectedPeriod,
+                onTap: () => _showPeriodPicker(context),
+              ),
+              const ModernDivider(),
+              // Include charts toggle
+              ToggleTile(
+                icon: Icons.bar_chart_rounded,
+                title: 'Include Charts',
+                subtitle: 'Visual graphs and charts',
+                value: _includeCharts,
+                onChanged: (v) => setState(() => _includeCharts = v),
+              ),
+              const ModernDivider(),
+              // Include breakdown toggle
+              ToggleTile(
+                icon: Icons.list_alt_rounded,
+                title: 'Detailed Breakdown',
+                subtitle: 'Individual subscription details',
+                value: _includeBreakdown,
+                onChanged: (v) => setState(() => _includeBreakdown = v),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 12),
-        child,
       ],
     );
   }
 
-  Widget _buildChip(String label, bool isSelected, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFF667EEA)
-              : const Color(0xFF667EEA).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
+  Widget _buildRecentExports(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ModernSectionHeader(
+          title: 'Recent Exports',
+          subtitle: 'Your export history',
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : const Color(0xFF667EEA),
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
+        ModernCard(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            children: [
+              _ExportHistoryItem(
+                title: 'Monthly Report - January 2025',
+                subtitle: 'PDF • 2.4 MB',
+                date: 'Jan 15, 2025',
+                onTap: () => _viewExport('report1'),
+                onShare: () => _shareExport('report1'),
+              ),
+              const ModernDivider(),
+              _ExportHistoryItem(
+                title: 'Q4 2024 Summary',
+                subtitle: 'Excel • 1.8 MB',
+                date: 'Dec 31, 2024',
+                onTap: () => _viewExport('report2'),
+                onShare: () => _shareExport('report2'),
+              ),
+              const ModernDivider(),
+              _ExportHistoryItem(
+                title: 'Subscription List',
+                subtitle: 'CSV • 245 KB',
+                date: 'Dec 20, 2024',
+                onTap: () => _viewExport('report3'),
+                onShare: () => _shareExport('report3'),
+              ),
+            ],
           ),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildToggleOption(
-    String title,
-    IconData icon,
-    bool value,
-    ValueChanged<bool> onChanged,
-  ) {
-    final theme = Theme.of(context);
+  void _handleQuickExport() async {
+    HapticFeedback.mediumImpact();
+    setState(() => _isExporting = true);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Icon(icon, color: theme.hintColor, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              title,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
+    // Simulate export delay
+    await Future.delayed(const Duration(seconds: 2));
+
+    setState(() => _isExporting = false);
+
+    Get.snackbar(
+      'Export Complete',
+      'Your $_selectedFormat file has been generated',
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
+  void _generateReport(String type) {
+    HapticFeedback.mediumImpact();
+    Get.snackbar(
+      'Generating Report',
+      'Your ${type.capitalizeFirst} report is being created...',
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+
+  void _showPeriodPicker(BuildContext context) {
+    final periods = [
+      'Last 30 Days',
+      'Last 3 Months',
+      'Last 6 Months',
+      'Last 12 Months',
+      'This Year',
+      'All Time',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-          ),
-          Switch.adaptive(
-            value: value,
-            onChanged: onChanged,
-            activeColor: const Color(0xFF667EEA),
-          ),
-        ],
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Text(
+                'Select Time Period',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ),
+            ...periods.map(
+              (period) => ListTile(
+                title: Text(period),
+                trailing: _selectedPeriod == period
+                    ? const Icon(Icons.check, color: AppColors.primary)
+                    : null,
+                onTap: () {
+                  setState(() => _selectedPeriod = period);
+                  Navigator.pop(context);
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildScheduledReports(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+  void _viewExport(String id) {
+    HapticFeedback.lightImpact();
+    Get.snackbar(
+      'Opening Export',
+      'Loading your exported file...',
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFFF9500).withOpacity(0.9),
-            const Color(0xFFFF6B35).withOpacity(0.9),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF9500).withOpacity(0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+  void _shareExport(String id) {
+    HapticFeedback.lightImpact();
+    Get.snackbar(
+      'Share',
+      'Share options will appear here',
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPER WIDGETS
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _FormatChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _FormatChip({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? Colors.white
+                : Colors.white.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          child: Column(
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.schedule,
-                  color: Colors.white,
-                  size: 24,
-                ),
+              Icon(
+                icon,
+                color: isSelected ? AppColors.accent : Colors.white,
+                size: 22,
               ),
-              const SizedBox(width: 14),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Scheduled Reports',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Automate your reporting workflow',
-                      style: TextStyle(color: Colors.white70, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'PRO',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? AppColors.accent : Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          _buildScheduleItem(
-            'Weekly Summary',
-            'Every Monday at 9:00 AM',
-            'Email',
-            true,
+        ),
+      ),
+    );
+  }
+}
+
+class _TemplateCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _TemplateCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: Container(
+        width: 140,
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.slate800 : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.06)
+                : AppColors.slate200,
           ),
-          const SizedBox(height: 12),
-          _buildScheduleItem(
-            'Monthly Report',
-            '1st of every month',
-            'Email + Drive',
-            true,
-          ),
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: () => _addSchedule(context),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1,
-                ),
+                color: color.withValues(alpha: isDark ? 0.2 : 0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const Spacer(),
+            Text(
+              title,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExportHistoryItem extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String date;
+  final VoidCallback onTap;
+  final VoidCallback onShare;
+
+  const _ExportHistoryItem({
+    required this.title,
+    required this.subtitle,
+    required this.date,
+    required this.onTap,
+    required this.onShare,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: isDark ? 0.15 : 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.description_outlined,
+                color: AppColors.primary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.add_circle_outline, color: Colors.white, size: 20),
-                  SizedBox(width: 10),
                   Text(
-                    'Add New Schedule',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                    title,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        ' • $date',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScheduleItem(
-    String name,
-    String frequency,
-    String delivery,
-    bool isActive,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.schedule,
-                          color: Colors.white.withOpacity(0.7),
-                          size: 14,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          frequency,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.send,
-                          color: Colors.white.withOpacity(0.7),
-                          size: 14,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          delivery,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
+            IconButton(
+              icon: const Icon(Icons.share_outlined, size: 20),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+              onPressed: onShare,
             ),
-          ),
-          Switch.adaptive(
-            value: isActive,
-            onChanged: (val) {},
-            activeColor: Colors.white,
-            activeTrackColor: Colors.white.withOpacity(0.3),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
-
-  Widget _buildExportHistory(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    final history = [
-      _ExportItem(
-        name: 'Monthly Summary - Jan 2025',
-        format: 'PDF',
-        date: 'Jan 31, 2025',
-        size: '2.4 MB',
-      ),
-      _ExportItem(
-        name: 'Annual Report 2024',
-        format: 'PDF',
-        date: 'Dec 31, 2024',
-        size: '8.7 MB',
-      ),
-      _ExportItem(
-        name: 'Subscriptions Export',
-        format: 'CSV',
-        date: 'Dec 15, 2024',
-        size: '156 KB',
-      ),
-    ];
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Export History',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              TextButton(onPressed: () {}, child: const Text('Clear All')),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...history.map((item) => _buildExportHistoryItem(context, item)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExportHistoryItem(BuildContext context, _ExportItem item) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    IconData getFormatIcon(String format) {
-      switch (format.toLowerCase()) {
-        case 'pdf':
-          return Icons.picture_as_pdf;
-        case 'excel':
-          return Icons.table_chart;
-        case 'csv':
-          return Icons.grid_on;
-        case 'json':
-          return Icons.data_object;
-        default:
-          return Icons.insert_drive_file;
-      }
-    }
-
-    Color getFormatColor(String format) {
-      switch (format.toLowerCase()) {
-        case 'pdf':
-          return const Color(0xFFFF6B6B);
-        case 'excel':
-          return const Color(0xFF00BFA6);
-        case 'csv':
-          return const Color(0xFF667EEA);
-        case 'json':
-          return const Color(0xFFFF9500);
-        default:
-          return Colors.grey;
-      }
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1F2937) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: getFormatColor(item.format).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              getFormatIcon(item.format),
-              color: getFormatColor(item.format),
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.name,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      item.date,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.hintColor,
-                      ),
-                    ),
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      width: 4,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: theme.hintColor,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    Text(
-                      item.size,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.hintColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Row(
-            children: [
-              IconButton(
-                onPressed: () => _shareExport(item),
-                icon: Icon(Icons.share, color: theme.hintColor, size: 20),
-              ),
-              IconButton(
-                onPressed: () => _downloadExport(item),
-                icon: const Icon(
-                  Icons.download,
-                  color: Color(0xFF00BFA6),
-                  size: 22,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Action methods
-  void _generateQuickExport(BuildContext context) async {
-    setState(() => _isGenerating = true);
-    HapticFeedback.mediumImpact();
-
-    // Simulate export generation
-    await Future.delayed(const Duration(seconds: 2));
-
-    setState(() => _isGenerating = false);
-    Get.snackbar(
-      'Export Complete! ✨',
-      'Your $_selectedFormat file is ready to download',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: const Color(0xFF00BFA6),
-      colorText: Colors.white,
-    );
-  }
-
-  void _generateReport(BuildContext context, _ReportTemplate template) {
-    Get.snackbar(
-      'Generating ${template.title}...',
-      'Your report will be ready shortly',
-      snackPosition: SnackPosition.BOTTOM,
-    );
-  }
-
-  void _buildCustomReport(BuildContext context) {
-    Get.snackbar(
-      'Building Custom Report...',
-      'With ${_includeCharts ? "charts, " : ""}${_includeDetailedBreakdown ? "breakdown, " : ""}${_includeRecommendations ? "recommendations" : ""}',
-      snackPosition: SnackPosition.BOTTOM,
-    );
-  }
-
-  void _showDatePicker(BuildContext context) {
-    setState(() => _selectedDateRange = 'Custom');
-    // TODO: Show date range picker
-  }
-
-  void _addSchedule(BuildContext context) {
-    Get.snackbar(
-      'Schedule Reports',
-      'This feature is available in Pro version',
-      snackPosition: SnackPosition.BOTTOM,
-    );
-  }
-
-  void _shareExport(_ExportItem item) {
-    Get.snackbar(
-      'Sharing ${item.name}',
-      'Opening share dialog...',
-      snackPosition: SnackPosition.BOTTOM,
-    );
-  }
-
-  void _downloadExport(_ExportItem item) {
-    Get.snackbar(
-      'Downloaded!',
-      '${item.name} saved to Downloads',
-      snackPosition: SnackPosition.BOTTOM,
-    );
-  }
-}
-
-// Data classes
-class _ReportTemplate {
-  final String id;
-  final String title;
-  final String description;
-  final IconData icon;
-  final List<Color> gradient;
-  final List<String> sections;
-
-  const _ReportTemplate({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.icon,
-    required this.gradient,
-    required this.sections,
-  });
-}
-
-class _ExportItem {
-  final String name;
-  final String format;
-  final String date;
-  final String size;
-
-  const _ExportItem({
-    required this.name,
-    required this.format,
-    required this.date,
-    required this.size,
-  });
 }
