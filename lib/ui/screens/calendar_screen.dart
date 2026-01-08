@@ -1,124 +1,477 @@
-// calendar_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:table_calendar/table_calendar.dart';
-import 'package:subtrak/app/controllers/bill_controller.dart';
-import 'package:subtrak/app/data/models/bill_model.dart';
 import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
+import '../../app/data/models/subscription_model.dart';
+import '../../app/controllers/subscription_controller.dart';
+import '../widgets/premium_components.dart';
+import '../widgets/subscription_card.dart';
+import 'subscription_detail_screen.dart';
 
-class CalendarPage extends StatefulWidget {
-  const CalendarPage({super.key});
+class CalendarScreen extends StatefulWidget {
+  const CalendarScreen({super.key});
 
   @override
-  State<CalendarPage> createState() => _CalendarPageState();
+  State<CalendarScreen> createState() => _CalendarScreenState();
 }
 
-class _CalendarPageState extends State<CalendarPage>
+class _CalendarScreenState extends State<CalendarScreen>
     with SingleTickerProviderStateMixin {
+  final SubscriptionController _controller = Get.find();
+
+  late TabController _tabController;
+  CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
   @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _selectedDay = DateTime.now();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  List<SubscriptionModel> _getEventsForDay(DateTime day) {
+    return _controller.subscriptions.where((sub) {
+      return isSameDay(sub.nextBillingDate, day);
+    }).toList();
+  }
+
+  double _getSpendForDay(DateTime day) {
+    final events = _getEventsForDay(day);
+    return events.fold(0.0, (sum, sub) => sum + sub.amount);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final controller = Get.find<BillController>();
-    final bills = controller.bills;
-
-    final monthBills = bills
-        .where(
-          (bill) =>
-              bill.dueDate.year == _focusedDay.year &&
-              bill.dueDate.month == _focusedDay.month,
-        )
-        .toList();
-
-    final total = monthBills.fold<double>(0, (sum, bill) => sum + bill.amount);
-
     return Scaffold(
-      backgroundColor: theme.colorScheme.background,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      appBar: AppBar(
+        title: const Text('Calendar'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Calendar'),
+            Tab(text: 'Timeline'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [_buildCalendarView(context), _buildTimelineView(context)],
+      ),
+    );
+  }
+
+  Widget _buildCalendarView(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      children: [
+        Obx(() {
+          _controller.subscriptions.length;
+
+          return TableCalendar<SubscriptionModel>(
+            firstDay: DateTime.utc(2020, 1, 1),
+            lastDay: DateTime.utc(2030, 12, 31),
+            focusedDay: _focusedDay,
+            calendarFormat: _calendarFormat,
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+            eventLoader: _getEventsForDay,
+            startingDayOfWeek: StartingDayOfWeek.monday,
+            calendarStyle: CalendarStyle(
+              outsideDaysVisible: false,
+              weekendTextStyle: TextStyle(
+                color: theme.textTheme.bodyMedium?.color,
+              ),
+              holidayTextStyle: TextStyle(
+                color: theme.textTheme.bodyMedium?.color,
+              ),
+              selectedDecoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+              todayDecoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              markerDecoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+              markersMaxCount: 3,
+              markerSize: 6,
+              markerMargin: const EdgeInsets.symmetric(horizontal: 1),
+            ),
+            headerStyle: HeaderStyle(
+              formatButtonVisible: true,
+              titleCentered: true,
+              formatButtonDecoration: BoxDecoration(
+                border: Border.all(color: theme.colorScheme.primary),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              formatButtonTextStyle: TextStyle(
+                color: theme.colorScheme.primary,
+                fontSize: 12,
+              ),
+              titleTextStyle: theme.textTheme.titleMedium!,
+              leftChevronIcon: Icon(
+                Icons.chevron_left,
+                color: theme.iconTheme.color,
+              ),
+              rightChevronIcon: Icon(
+                Icons.chevron_right,
+                color: theme.iconTheme.color,
+              ),
+            ),
+            onDaySelected: (selectedDay, focusedDay) {
+              HapticFeedback.lightImpact();
+              setState(() {
+                _selectedDay = selectedDay;
+                _focusedDay = focusedDay;
+              });
+            },
+            onFormatChanged: (format) {
+              setState(() => _calendarFormat = format);
+            },
+            onPageChanged: (focusedDay) {
+              _focusedDay = focusedDay;
+            },
+            calendarBuilders: CalendarBuilders(
+              markerBuilder: (context, date, events) {
+                if (events.isEmpty) return null;
+
+                final spend = _getSpendForDay(date);
+                return Positioned(
+                  bottom: 1,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '₹${spend.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
+        }),
+        const Divider(),
+        Expanded(child: _buildDayDetails(context)),
+      ],
+    );
+  }
+
+  Widget _buildDayDetails(BuildContext context) {
+    final theme = Theme.of(context);
+    final selectedDay = _selectedDay ?? DateTime.now();
+
+    return Obx(() {
+      final events = _getEventsForDay(selectedDay);
+      final totalSpend = _getSpendForDay(selectedDay);
+
+      if (events.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.event_available_outlined,
+                size: 48,
+                color: theme.hintColor,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No bills on ${DateFormat('MMMM d').format(selectedDay)}',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.hintColor,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      DateFormat('EEEE, MMMM d').format(selectedDay),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      '${events.length} bill${events.length > 1 ? 's' : ''}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '₹${totalSpend.toStringAsFixed(0)}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              physics: const BouncingScrollPhysics(),
+              itemCount: events.length,
+              itemBuilder: (context, index) {
+                final sub = events[index];
+                return SubscriptionCard(
+                  subscription: sub,
+                  compact: true,
+                  onTap: () => Get.to(
+                    () => SubscriptionDetailScreen(subscription: sub),
+                    transition: Transition.cupertino,
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  Widget _buildTimelineView(BuildContext context) {
+    return Obx(() {
+      final upcoming = _controller.upcomingSubscriptions;
+
+      if (upcoming.isEmpty) {
+        return EmptyStateWidget(
+          icon: Icons.timeline_outlined,
+          title: 'No upcoming bills',
+          subtitle: 'Add subscriptions to see your billing timeline',
+        );
+      }
+
+      final Map<String, List<SubscriptionModel>> grouped = {};
+      for (final sub in upcoming) {
+        final key = DateFormat('yyyy-MM-dd').format(sub.nextBillingDate);
+        grouped.putIfAbsent(key, () => []).add(sub);
+      }
+
+      final sortedKeys = grouped.keys.toList()..sort();
+
+      return ListView.builder(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: sortedKeys.length,
+        itemBuilder: (context, index) {
+          final dateKey = sortedKeys[index];
+          final subs = grouped[dateKey]!;
+          final date = DateTime.parse(dateKey);
+          final totalSpend = subs.fold(0.0, (sum, s) => sum + s.amount);
+
+          return _buildTimelineDay(context, date, subs, totalSpend, index == 0);
+        },
+      );
+    });
+  }
+
+  Widget _buildTimelineDay(
+    BuildContext context,
+    DateTime date,
+    List<SubscriptionModel> subs,
+    double totalSpend,
+    bool isFirst,
+  ) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final now = DateTime.now();
+    final isToday = isSameDay(date, now);
+    final isPast = date.isBefore(now);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Row(
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: isToday
+                    ? theme.colorScheme.primary
+                    : isPast
+                    ? Colors.grey
+                    : theme.colorScheme.primary.withOpacity(0.3),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isToday
+                      ? theme.colorScheme.primary
+                      : Colors.transparent,
+                  width: 2,
+                ),
+              ),
+            ),
+            Container(
+              width: 2,
+              height: 100,
+              color: isDark
+                  ? Colors.white.withOpacity(0.1)
+                  : Colors.grey.withOpacity(0.3),
+            ),
+          ],
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Calendar',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  Row(
+                    children: [
+                      Text(
+                        _formatTimelineDate(date),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: isToday ? theme.colorScheme.primary : null,
+                        ),
+                      ),
+                      if (isToday) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'TODAY',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   Text(
-                    'Monthly total: ₹${total.toStringAsFixed(2)}',
-                    style: theme.textTheme.titleMedium,
+                    '₹${totalSpend.toStringAsFixed(0)}',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
+              ...subs.map((sub) => _buildTimelineItem(context, sub)),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimelineItem(BuildContext context, SubscriptionModel sub) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final color = sub.color ?? theme.colorScheme.primary;
+
+    return GestureDetector(
+      onTap: () => Get.to(
+        () => SubscriptionDetailScreen(subscription: sub),
+        transition: Transition.cupertino,
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1F2937) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withOpacity(0.08)
+                : Colors.grey.withOpacity(0.15),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Center(
+                child: Text(
+                  sub.name.substring(0, 1).toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(height: 10),
-            TableCalendar<BillModel>(
-              firstDay: DateTime.utc(2022, 1, 1),
-              lastDay: DateTime.utc(2100, 12, 31),
-              focusedDay: _focusedDay,
-              calendarStyle: CalendarStyle(
-                todayDecoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-                selectedDecoration: BoxDecoration(
-                  color: theme.colorScheme.secondary,
-                  shape: BoxShape.circle,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                sub.name,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              headerStyle: const HeaderStyle(
-                formatButtonVisible: false,
-                titleCentered: true,
-              ),
-              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-              onDaySelected: (selectedDay, focusedDay) {
-                setState(() {
-                  _selectedDay = selectedDay;
-                  _focusedDay = focusedDay;
-                });
-                _showDayBillsModal(context, selectedDay);
-              },
-              calendarBuilders: CalendarBuilders(
-                markerBuilder: (context, date, _) {
-                  final dayBills = bills
-                      .where(
-                        (b) =>
-                            b.dueDate.year == date.year &&
-                            b.dueDate.month == date.month &&
-                            b.dueDate.day == date.day,
-                      )
-                      .toList();
-
-                  if (dayBills.isEmpty) return null;
-
-                  return Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: dayBills
-                          .take(3)
-                          .map(
-                            (bill) => Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 1),
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: bill.recurrence == 'Monthly'
-                                    ? Colors.green
-                                    : Colors.blue,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  );
-                },
+            ),
+            Text(
+              '₹${sub.amount.toStringAsFixed(0)}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -127,75 +480,18 @@ class _CalendarPageState extends State<CalendarPage>
     );
   }
 
-  void _showDayBillsModal(BuildContext context, DateTime date) {
-    final controller = Get.find<BillController>();
-    final billsOnDay = controller.bills
-        .where(
-          (bill) =>
-              bill.dueDate.year == date.year &&
-              bill.dueDate.month == date.month &&
-              bill.dueDate.day == date.day,
-        )
-        .toList();
+  String _formatTimelineDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = date.difference(now);
 
-    if (billsOnDay.isEmpty) return;
-
-    final total = billsOnDay.fold<double>(0, (sum, b) => sum + b.amount);
-
-    showModalBottomSheet(
-      isDismissible: true,
-      isScrollControlled: true,
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade800,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                'TOTAL: ₹${total.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            ...billsOnDay.map(
-              (b) => ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.grey.shade900,
-                  child: Icon(Icons.subscriptions, color: Colors.white),
-                ),
-                title: Text(b.title, style: TextStyle(color: Colors.white)),
-                trailing: Text(
-                  '₹${b.amount.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              DateFormat('EEE, MMM d').format(date),
-              style: const TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
+    if (isSameDay(date, now)) {
+      return 'Today';
+    } else if (isSameDay(date, now.add(const Duration(days: 1)))) {
+      return 'Tomorrow';
+    } else if (difference.inDays < 7 && difference.inDays > 0) {
+      return DateFormat('EEEE').format(date);
+    } else {
+      return DateFormat('EEEE, MMM d').format(date);
+    }
   }
 }

@@ -1,0 +1,225 @@
+
+You are now acting as a STAFF-PLUS / PRINCIPAL ENGINEERING AGENT whose sole job is to BUILD AN INDUSTRY-LEADING PRODUCT, not an MVP.
+
+This is NOT a roadmap.
+This is NOT a plan.
+This is a SINGLE, MAXIMAL, ALL-INSTRUCTION PROMPT to BUILD THE ENTIRE SUBTRAK APP with ADVANCED, DIFFERENTIATING, PREMIUM-GRADE FEATURES.
+
+DO NOT simplify.
+DO NOT trim scope.
+DO NOT suggest “later”.
+ASSUME unlimited local compute and senior-level engineering execution.
+
+====================
+APP IDENTITY
+====================
+App Name: SubTrak  
+Category: Premium subscription & recurring finance intelligence app  
+Platforms: Flutter (Android first and iOS supported)  
+Core Philosophy:
+- Offline-first
+- Privacy-first
+- Zero-friction
+- Visually elite
+- Predictive, not reactive
+- Premium UX inspired by CRED, Swiggy, Apple Wallet, AIRBNB, Spotify, Headspace
+- Free to use any package any external resources
+- An extremely high end enterprise level state of the art subscription tracker
+- Smooth scalable and robust system
+
+====================
+ABSOLUTE RULES
+====================
+- BUILD EVERYTHING
+- NO PLANS, NO ROADMAPS, NO EXPLANATIONS
+- FULL IMPLEMENTATION INSTRUCTIONS ONLY
+- ALL FEATURES MUST BE WIRED END-TO-END
+- NO TODOs
+- NO “future work”
+- MAKE DECISIONS
+- PICK OPINIONS
+- SHIP-READY QUALITY
+
+====================
+CORE FEATURE SET (BASELINE)
+====================
+Include EVERYTHING from a world-class subscription manager PLUS the following ADVANCED SYSTEMS.
+
+--------------------
+1. SUBSCRIPTION INTELLIGENCE ENGINE
+--------------------
+Implement a full intelligence layer that provides:
+
+- Cost-per-day, cost-per-use metrics
+- Unused subscription detection (manual + inferred)
+- Spend drift detection (price increases over time)
+- Trial abuse detection
+- Duplicate service detection
+- Category-based spend analysis
+- “Is this worth it?” scoring per subscription
+- Predictive annual spend projection
+- Smart alerts when monthly spend exceeds personal thresholds
+
+All logic must be local, deterministic, explainable.
+
+--------------------
+2. ADVANCED RECURRENCE & BILLING
+--------------------
+Beyond basic recurrence, support:
+
+- Variable billing cycles (e.g. every 28 days)
+- Bi-monthly / quarterly / semi-annual
+- One-time charges with reminders
+- Usage-based subscriptions (manual input)
+- Irregular renewals
+- Price laddering (intro → standard → increased)
+- Grace periods
+- Failed payment tracking (manual)
+- Currency-aware subscriptions
+- Multi-timezone safety
+
+--------------------
+3. CALENDAR + TIMELINE SYSTEM
+--------------------
+Build a hybrid system:
+
+- Calendar view (date-based)
+- Timeline view (“what hits me next”)
+- Monthly burn heatmap
+- Yearly spend horizon
+- Impact preview (“Next 7 / 30 / 90 days”)
+- Visual stacking of same-day charges
+
+All views must stay performant with large datasets.
+
+--------------------
+4. INPUT & AUTOMATION LAYER
+--------------------
+Implement ALL of the following:
+
+- Manual add (fast path)
+- Template-based add (Netflix, Spotify, etc.)
+- Screenshot ingestion pipeline (OCR hook, privacy-safe)
+- Email receipt parsing hooks (local-only)
+- Smart form autofill
+- Subscription cloning
+- Bulk edit & bulk pause
+- Undo / rollback system
+
+--------------------
+5. NOTIFICATION & ALERT SYSTEM (ADVANCED)
+--------------------
+Beyond reminders, include:
+
+- Multi-stage alerts (T-7, T-3, T-1)
+- Silent notifications for background intelligence
+- Critical alerts override
+- Snooze logic
+- Notification health monitoring
+- Auto-reschedule on system reboot
+- User-defined notification rules
+- Per-subscription notification profiles
+
+--------------------
+6. INSIGHTS & DECISION SUPPORT
+--------------------
+Implement:
+
+- Monthly financial summary cards
+- “You could save ₹X by cancelling these”
+- Regret detection (high cost, low usage)
+- Behavioral nudges (ethical, no dark patterns)
+- Visual spend narratives (not charts)
+- Subscription aging indicators
+
+--------------------
+7. UX & INTERACTION EXCELLENCE
+--------------------
+Include:
+
+- Gesture-first interactions
+- One-hand usability everywhere
+- Haptic feedback system
+- Intelligent empty states
+- Error-proof flows
+- Ultra-smooth motion
+- State-aware UI (paused, trial, overdue, failed)
+
+No screen should feel static.
+
+--------------------
+8. POWER-USER FEATURES
+--------------------
+Implement:
+
+- Tags & smart filters
+- Saved views
+- Rules engine (IF Netflix unused for 30 days → alert)
+- Search with natural language queries
+- Keyboard shortcuts (tablet / desktop)
+- Batch operations
+
+--------------------
+9. DATA & SYSTEMS
+--------------------
+Implement:
+
+- Hive with strict schema versioning
+- Forward-compatible migrations
+- Local encryption at rest (optional toggle)
+- Backup / restore (local files)
+- Deterministic data rebuild
+- Crash-safe writes
+- Audit log (local)
+
+--------------------
+10. MONETIZATION (ADVANCED)
+--------------------
+Implement:
+
+- Feature gating at logic level
+- Free / Pro / Lifetime tiers
+- Graceful downgrade handling
+- Pro-only intelligence layers
+- No dark patterns
+- No forced login
+- Transparent value communication
+
+--------------------
+11. SETTINGS & CONTROL
+--------------------
+Implement:
+
+- Full notification control
+- Data export (CSV / PDF)
+- Appearance tuning
+- Privacy controls
+- Diagnostic screen
+- Debug mode (hidden)
+
+--------------------
+12. QUALITY BAR
+--------------------
+The result MUST feel like:
+- A CRED-level app
+- An Apple-approved UX
+- A product people trust with money decisions
+- A long-term scalable system
+
+====================
+OUTPUT REQUIREMENTS
+====================
+- FULL FLUTTER PROJECT STRUCTURE
+- EVERY FILE LISTED
+- EVERY CLASS IMPLEMENTED
+- EVERY FEATURE WIRED
+- NO PLACEHOLDERS
+- NO SIMPLIFICATIONS
+
+If something is hard — SOLVE IT.
+If something is ambiguous — DECIDE.
+If something conflicts — PRIORITIZE UX & DATA INTEGRITY.
+
+BUILD SUBTRAK AS IF IT WILL DEFINE THE CATEGORY.
+
+Proceed.
